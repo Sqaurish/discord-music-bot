@@ -19,6 +19,11 @@ async def on_ready():
     
     nodes = [
         wavelink.Node(
+            uri="http://lava-v4.ajieblogs.eu.org:80",
+            password="https://dsc.gg/ajidevserver",
+            secure=False
+        ),
+        wavelink.Node(
             uri="https://lavalink.devamop.in:443",
             password="DevamOP",
             secure=True
@@ -26,79 +31,40 @@ async def on_ready():
     ]
     
     await wavelink.Pool.connect(nodes=nodes, client=bot)
-    print("✅ Connected to Lavalink!")
+    print("✅ Attempted to connect to Lavalink nodes...")
 
 @bot.event
 async def on_wavelink_node_ready(node: wavelink.Node):
-    print(f"✅ Lavalink Node is Ready!")
+    print(f"✅ Lavalink Node Connected Successfully: {node.uri}")
 
-# ====================== COMMANDS ======================
+@bot.event
+async def on_wavelink_node_closed(node: wavelink.Node, payload):
+    print(f"❌ Lavalink Node Disconnected: {node.uri} | Reason: {payload.reason}")
 
+# ====================== PLAY COMMAND ======================
 @bot.command()
 async def play(ctx, *, query: str):
     if not ctx.author.voice:
-        return await ctx.send("❌ You must be in a voice channel first!")
+        return await ctx.send("❌ Join a voice channel first!")
 
-    # === Improved Voice Connection ===
-    player: wavelink.Player = ctx.voice_client
-
-    if not player:
+    # Connect to voice
+    if not ctx.voice_client:
         try:
-            player = await ctx.author.voice.channel.connect(cls=wavelink.Player)
+            await ctx.author.voice.channel.connect(cls=wavelink.Player)
             await ctx.send("🔗 Joined voice channel!")
         except Exception as e:
             return await ctx.send(f"❌ Failed to join voice: {e}")
 
-    # Make sure bot and user are in same channel
-    if player.channel != ctx.author.voice.channel:
-        await player.move_to(ctx.author.voice.channel)
+    player: wavelink.Player = ctx.voice_client
 
-    await ctx.send(f"🔍 Searching for: **{query}**")
-
+    await ctx.send(f"🔍 Searching: **{query}**")
+    
     tracks = await wavelink.Playable.search(query)
     if not tracks:
-        return await ctx.send("❌ No results found!")
+        return await ctx.send("❌ No tracks found!")
 
     track = tracks[0]
     await player.play(track)
-    await ctx.send(f"▶️ **Now Playing:** {track.title}\nBy: {track.author}")
-
-
-@bot.command()
-async def pause(ctx):
-    player: wavelink.Player = ctx.voice_client
-    if not player or not player.playing:
-        return await ctx.send("❌ Nothing is playing!")
-    await player.pause()
-    await ctx.send("⏸️ Paused")
-
-
-@bot.command()
-async def resume(ctx):
-    player: wavelink.Player = ctx.voice_client
-    if not player or not player.paused:
-        return await ctx.send("❌ Nothing is paused!")
-    await player.resume()
-    await ctx.send("▶️ Resumed")
-
-
-@bot.command()
-async def skip(ctx):
-    player: wavelink.Player = ctx.voice_client
-    if not player or not player.playing:
-        return await ctx.send("❌ Nothing is playing!")
-    await player.skip()
-    await ctx.send("⏭️ Skipped")
-
-
-@bot.command()
-async def stop(ctx):
-    player: wavelink.Player = ctx.voice_client
-    if player:
-        await player.disconnect()
-        await ctx.send("⏹️ Stopped and left the voice channel.")
-    else:
-        await ctx.send("❌ Bot is not in a voice channel.")
-
+    await ctx.send(f"▶️ **Now Playing:** {track.title}")
 
 bot.run(TOKEN)
