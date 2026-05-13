@@ -111,7 +111,7 @@ async def nowplaying(ctx):
     if not player or not player.current:
         return await ctx.send("❌ Nothing is playing!")
     track = player.current
-    await ctx.send(f"🎵 **Now Playing:** {track.title}\nBy: {track.author}")
+    await ctx.send(f"🎵 **Now Playing:** {track.title}")
 
 
 @bot.command()
@@ -150,8 +150,21 @@ async def queue(ctx):
         return await ctx.send("❌ Bot is not in voice.")
 
     embed = discord.Embed(title="🎵 Music Queue", color=0x00b0ff)
+
     if player.current:
         embed.add_field(name="Now Playing", value=f"▶️ {player.current.title}", inline=False)
+
     if player.queue:
         q = "\n".join([f"`{i+1}.` {track.title}" for i, track in enumerate(player.queue)])
-        embed.add_field(name="Up Next", value=q[:900], inline
+        embed.add_field(name="Up Next", value=q[:900], inline=False)
+    else:
+        embed.add_field(name="Up Next", value="Empty", inline=False)
+
+    await ctx.send(embed=embed)
+
+
+@bot.command()
+async def clear(ctx):
+    player = get_player(ctx)
+    if player:
+        player.queue.clear
