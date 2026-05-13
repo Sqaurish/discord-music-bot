@@ -31,7 +31,6 @@ async def on_ready():
 async def on_wavelink_node_ready(node: wavelink.Node):
     print(f"✅ Lavalink Connected → {node.uri}")
 
-# Helper function to get player
 def get_player(ctx):
     vc = ctx.voice_client
     return vc if isinstance(vc, wavelink.Player) else None
@@ -43,7 +42,6 @@ async def play(ctx, *, query: str):
     if not ctx.author.voice:
         return await ctx.send("❌ Join a voice channel first!")
 
-    # Join VC if not joined
     if not ctx.voice_client:
         await ctx.author.voice.channel.connect(cls=wavelink.Player)
 
@@ -58,7 +56,7 @@ async def play(ctx, *, query: str):
     track = tracks[0]
     await player.queue.put_wait(track)
 
-    if not player.playing:
+    if not player.playing and not player.paused:
         await player.play(track)
         await ctx.send(f"▶️ **Now Playing:** {track.title}")
     else:
@@ -66,11 +64,34 @@ async def play(ctx, *, query: str):
 
 
 @bot.command()
+async def insert(ctx, *, query: str):
+    if not ctx.author.voice:
+        return await ctx.send("❌ Join a voice channel first!")
+
+    if not ctx.voice_client:
+        await ctx.author.voice.channel.connect(cls=wavelink.Player)
+
+    player: wavelink.Player = get_player(ctx)
+    tracks = await wavelink.Playable.search(query)
+
+    if not tracks:
+        return await ctx.send("❌ No tracks found!")
+
+    track = tracks[0]
+    player.queue.put_at_front(track)
+
+    if not player.playing and not player.paused:
+        await player.play(track)
+        await ctx.send(f"▶️ **Now Playing:** {track.title}")
+    else:
+        await ctx.send(f"⏭️ **Inserted to play next:** {track.title}")
+
+
+@bot.command()
 async def pause(ctx):
     player = get_player(ctx)
     if not player or not player.playing:
-        return await ctx.send("❌ Nothing is playing right now!")
-    
+        return await ctx.send("❌ Nothing is playing!")
     await player.pause()
     await ctx.send("⏸️ **Paused**")
 
@@ -80,9 +101,18 @@ async def resume(ctx):
     player = get_player(ctx)
     if not player or not player.paused:
         return await ctx.send("❌ Nothing is paused!")
-    
     await player.resume()
     await ctx.send("▶️ **Resumed**")
+
+
+@bot.command(aliases=['np', 'nowplaying'])
+async def nowplaying(ctx):
+    player = get_player(ctx)
+    if not player or not player.current:
+        return await ctx.send("❌ Nothing is playing!")
+    
+    track = player.current
+    await ctx.send(f"🎵 **Now Playing:** {track.title}\nBy: {track.author}")
 
 
 @bot.command()
@@ -90,27 +120,65 @@ async def skip(ctx):
     player = get_player(ctx)
     if not player or not player.playing:
         return await ctx.send("❌ Nothing is playing!")
-    
     await player.skip()
     await ctx.send("⏭️ **Skipped**")
+
+
+@bot.command()
+async def loop(ctx):
+    player = get_player(ctx)
+    if not player:
+        return await ctx.send("❌ Bot is not in voice!")
+    
+    player.queue.loop = not player.queue.loop
+    status = "Enabled" if player.queue.loop else "Disabled"
+    await ctx.send(f"🔁 **Loop is now {status}**")
+
+
+@bot.command()
+async def volume(ctx, volume: int = None):
+    if volume is None:
+        return await ctx.send("Usage: `!volume 80`")
+    
+    player = get_player(ctx)
+    if not player:
+        return await ctx.send("❌ Bot is not in voice!")
+    
+    if 0 <= volume <= 150:
+        await player.set_volume(volume)
+        await ctx.send(f"🔊 Volume set to **{volume}%**")
+    else:
+        await ctx.send("Volume must be between 0 and 150!")
 
 
 @bot.command()
 async def queue(ctx):
     player = get_player(ctx)
     if not player:
-        return await ctx.send("❌ Bot is not in a voice channel.")
+        return await ctx.send("❌ Bot is not in voice.")
 
-    embed = discord.Embed(title="🎵 Music Queue", color=0x3498db)
+    embed = discord.Embed(title="🎵 Music Queue", color=0x00b0ff)
 
     if player.current:
         embed.add_field(name="Now Playing", value=f"▶️ {player.current.title}", inline=False)
 
     if player.queue:
-        q_list = "\n".join([f"`{i+1}.` {track.title}" for i, track in enumerate(player.queue)])
-        embed.add_field(name="Up Next", value=q_list[:900] or "Empty", inline=False)
+        q = "\n".join([f"`{i+1}.` {track.title}" for i, track in enumerate(player.queue)])
+        embed.add_field(name="Up Next", value=q[:900], inline=False)
+    else:
+        embed.add_field(name="Up Next", value="Empty", inline=False)
 
     await ctx.send(embed=embed)
+
+
+@bot.command()
+async def clear(ctx):
+    player = get_player(ctx)
+    if player:
+        player.queue.clear()
+        await ctx.send("🗑️ **Queue Cleared**")
+    else:
+        await ctx.send("❌ Bot is not in voice.")
 
 
 @bot.command()
@@ -118,8 +186,8 @@ async def stop(ctx):
     player = get_player(ctx)
     if player:
         await player.disconnect()
-        await ctx.send("⏹️ Stopped and left voice channel.")
+        await ctx.send("⏹️ Stopped and left the voice channel.")
     else:
-        await ctx.send("❌ Bot is not in voice.")
+        await ctx.send("❌ Bot is not in voice channel.")
 
 bot.run(TOKEN)
