@@ -105,12 +105,11 @@ async def resume(ctx):
     await ctx.send("▶️ **Resumed**")
 
 
-@bot.command(aliases=['np', 'nowplaying'])
+@bot.command(aliases=['np'])
 async def nowplaying(ctx):
     player = get_player(ctx)
     if not player or not player.current:
         return await ctx.send("❌ Nothing is playing!")
-    
     track = player.current
     await ctx.send(f"🎵 **Now Playing:** {track.title}\nBy: {track.author}")
 
@@ -128,27 +127,20 @@ async def skip(ctx):
 async def loop(ctx):
     player = get_player(ctx)
     if not player:
-        return await ctx.send("❌ Bot is not in voice!")
-    
+        return await ctx.send("❌ Not in voice!")
     player.queue.loop = not player.queue.loop
     status = "Enabled" if player.queue.loop else "Disabled"
-    await ctx.send(f"🔁 **Loop is now {status}**")
+    await ctx.send(f"🔁 Loop **{status}**")
 
 
 @bot.command()
-async def volume(ctx, volume: int = None):
-    if volume is None:
-        return await ctx.send("Usage: `!volume 80`")
-    
+async def volume(ctx, volume: int = 100):
     player = get_player(ctx)
     if not player:
-        return await ctx.send("❌ Bot is not in voice!")
-    
-    if 0 <= volume <= 150:
-        await player.set_volume(volume)
-        await ctx.send(f"🔊 Volume set to **{volume}%**")
-    else:
-        await ctx.send("Volume must be between 0 and 150!")
+        return await ctx.send("❌ Not in voice!")
+    volume = max(0, min(150, volume))
+    await player.set_volume(volume)
+    await ctx.send(f"🔊 Volume set to **{volume}%**")
 
 
 @bot.command()
@@ -158,36 +150,8 @@ async def queue(ctx):
         return await ctx.send("❌ Bot is not in voice.")
 
     embed = discord.Embed(title="🎵 Music Queue", color=0x00b0ff)
-
     if player.current:
         embed.add_field(name="Now Playing", value=f"▶️ {player.current.title}", inline=False)
-
     if player.queue:
         q = "\n".join([f"`{i+1}.` {track.title}" for i, track in enumerate(player.queue)])
-        embed.add_field(name="Up Next", value=q[:900], inline=False)
-    else:
-        embed.add_field(name="Up Next", value="Empty", inline=False)
-
-    await ctx.send(embed=embed)
-
-
-@bot.command()
-async def clear(ctx):
-    player = get_player(ctx)
-    if player:
-        player.queue.clear()
-        await ctx.send("🗑️ **Queue Cleared**")
-    else:
-        await ctx.send("❌ Bot is not in voice.")
-
-
-@bot.command()
-async def stop(ctx):
-    player = get_player(ctx)
-    if player:
-        await player.disconnect()
-        await ctx.send("⏹️ Stopped and left the voice channel.")
-    else:
-        await ctx.send("❌ Bot is not in voice channel.")
-
-bot.run(TOKEN)
+        embed.add_field(name="Up Next", value=q[:900], inline
