@@ -20,26 +20,20 @@ async def on_ready():
     nodes = [
         wavelink.Node(
             uri="http://lava-v4.ajieblogs.eu.org:80",
-            password="https://dsc.gg/ajidevserver",
-            secure=False
+            password="https://dsc.gg/ajidevserver"
         ),
         wavelink.Node(
-            uri="https://lavalink.devamop.in:443",
-            password="DevamOP",
-            secure=True
+            uri="http://89.106.84.59:4000",
+            password="heavencloud.in"
         )
     ]
     
     await wavelink.Pool.connect(nodes=nodes, client=bot)
-    print("✅ Attempted to connect to Lavalink nodes...")
+    print("🔄 Connecting to Lavalink...")
 
 @bot.event
 async def on_wavelink_node_ready(node: wavelink.Node):
-    print(f"✅ Lavalink Node Connected Successfully: {node.uri}")
-
-@bot.event
-async def on_wavelink_node_closed(node: wavelink.Node, payload):
-    print(f"❌ Lavalink Node Disconnected: {node.uri} | Reason: {payload.reason}")
+    print(f"✅ Lavalink Node Connected Successfully → {node.uri}")
 
 # ====================== PLAY COMMAND ======================
 @bot.command()
@@ -47,19 +41,18 @@ async def play(ctx, *, query: str):
     if not ctx.author.voice:
         return await ctx.send("❌ Join a voice channel first!")
 
-    # Connect to voice
     if not ctx.voice_client:
         try:
             await ctx.author.voice.channel.connect(cls=wavelink.Player)
-            await ctx.send("🔗 Joined voice channel!")
+            await ctx.send("✅ Joined the voice channel!")
         except Exception as e:
             return await ctx.send(f"❌ Failed to join voice: {e}")
 
     player: wavelink.Player = ctx.voice_client
 
     await ctx.send(f"🔍 Searching: **{query}**")
-    
     tracks = await wavelink.Playable.search(query)
+
     if not tracks:
         return await ctx.send("❌ No tracks found!")
 
